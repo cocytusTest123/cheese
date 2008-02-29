@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+#
+
+require 'rubygems'
+require 'optparse'
+require 'fileutils'
+
+class Arguments < Hash
+  def initialize(args)
+    super
+  
+    opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #$0 [options]"
+      
+      self[:setup]            = false
+      self[:actions]          = [:scm, :web_server, :app_server, :database]
+      self[:thread_count]     = 1
+      self[:database_type]    = :postgresql
+      self[:remove]           = false
+      self[:svn_anon_read]    = false
+      self[:verbose]          = false
+      self[:dry_run]          = false
+      
+      opts.on('-n STRING', '--name STRING', String, '[REQUIRED] set the name to use') do |name|
+        self[:name] = name
+      end
+
+      opts.on('--setup', 'setup your preferences') do
+        self[:setup] = true
+      end
+      
+      opts.on('--remove', 'remove instead of create') do
+        self[:remove] = true
+      end
+      
+      opts.on('-t NUMBER', '--threads NUMBER', Integer, 
+                '[DEFAULT=1] how many app server threads to listen on') do |thread_count|
+        self[:thread_count] = thread_count
+      end
+      
+      opts.on('--scm-anon-read', 'set the scm to allow anonymous read on the source repository') do |anon|
+        self[:scm_anon_read] = anon
+      end
+      
+      opts.on('-D', '--database-type STRING', [:mysql, :postgresql], 
+                'pass in the database type, currently { mysql || postgresql (default) }') do |dtype|
+        self[:database_type] = dtype
+      end
+      
+      opts.on('--only-web-server', 'only add/replace a vhost and restart the web server (e.g. nginx)') do
+        self[:actions] = [:web_server]
+      end
+      
+      opts.on('--only-scm', 'only create a scm repository and standard file structure') do
+        self[:actions] = [:scm]
+      end
+      
+      opts.on('--only-app-config', 'only create an app server config file') do
+        self[:actions] = [:app_server]
+      end
+      
+      opts.on('--only-database', 'only create the database') do
+        self[:actions] = [:database]
+      end
+      
+      opts.on('--skip-web-server', 'skip adding/replacing a vhost and restarting the web server (e.g. nginx)') do
+        self[:actions] -= [:web_server]
+      end
+      
+      opts.on('--skip-scm', 
+          'skip creating a source repository and standard file structure') do
+        self[:actions] -= [:scm]
+      end
+            
+      opts.on('--skip-app-config', 'skip creating an app server config file') do
+        self[:actions] -= [:app_server]
+      end
+      
+      opts.on('--skip-database', 'skip creating the database') do
+        self[:actions] -= [:database]
+      end
+      
+      opts.on('-L', '--list-vhosts', 'list the vhosts contained in our web server') do
+        self[:actions] = [:list_vhosts]
+      end
+      
+      opts.on_tail('-v', '--verbose', 'be verbose about what action is being taken') do
+        self[:verbose] = true
+      end
+      
+      opts.on_tail('--dry-run', 'fake all of the actions') do
+        self[:dry_run] = true
+      end
+      
+      opts.on_tail('-h', '--help', 'display this help and exit') do
+        puts opts
+        exit
+      end
+    end
+    
+    opts.parse!(args)
+    if self[:name].empty? and !self[:list_vhosts]
+      puts "You must specify a name with the --name switch e.g. your-domain.com"
+      exit
+    end
+  end
+end
+
+# Default arguments to help if no arguments given
+argv = ARGV.empty? ? ["-h"] : ARGV
+options = Arguments.new(argv)
+
+if options[:setup]
+  require 'cheese-setup'
+else
+  require 'controller'
+  controller = Cheese::Controller.new(options)
+end

@@ -1,0 +1,11 @@
+Things to implement in order of priority:
+
+* TESTS TESTS TESTS!
+* Monit services
+* S3 backup
+* Allow mongrel to use a set port
+* Remove the parsing of the entire nginx file and use includes
+
+Things to look into:
+
+* Using Capistrano to manage this remotely
